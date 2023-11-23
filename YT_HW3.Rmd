@@ -1,0 +1,933 @@
+---
+title: "Homework 3"
+author: "Yinkun Tang"
+date: "2023-05-20"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Data Exploration & Preparation
+```{r}
+setwd("D:/Yinkun/UC Davis - Yinkun Tang/Third Academic Year/Spring Quarter 2023/STA 141B/HW3")
+library("RSQLite")
+library("DBI")
+stats_db <- dbConnect(RSQLite::SQLite(), dbname = "stats.stackexchange.db")
+print("The list of tables in stats.stackexchange.db: ")
+dbListTables(stats_db)
+```
+# Questions & Answers - 13 out of 20
+
+1. How many users are there?
+
+The question is basically equivalent to "count the number of distinct Id", as Id should be distinct and unique for each user.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT COUNT(DISTINCT Id)
+FROM Users
+```
+
+The result, 321677, directly comes from the count of distinct Id from Users table.
+
+The SQL command used for this question is:
+
+SELECT COUNT(DISTINCT Id)
+FROM Users
+
+2. How many users joined since 2020? (Hint: Convert the CreationDate to a year.)
+
+The question is equivalent to find the count of distinct Id created after 2020-01-01 considering the CreationDate from the Users table.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT datetime(CreationDate), Id, COUNT(DISTINCT Id)
+FROM Users
+WHERE CreationDate >= '2020-01-01'
+```
+
+The result, 100796, directly comes from the count of distinct AccountId from Users table with the condition that the CreationDate is larger or equal to 2020-01-01
+
+The SQL command used for this question is:
+
+SELECT datetime(CreationDate), Id, COUNT(DISTINCT Id)
+FROM Users
+WHERE CreationDate >= '2020-01-01'
+
+3. How many users joined each year? Describe this with a plot, commenting on any anomalies
+
+This question is equivalent to find the number of distinct Id created in each year and generate the plot.
+
+Here is the SQL & R Code Output:
+```{sql connection = stats_db}
+SELECT STRFTIME("%Y", CreationDate), COUNT(DISTINCT Id)
+FROM Users
+GROUP BY STRFTIME("%Y", CreationDate)
+```
+
+```{r}
+Q3Table = dbGetQuery(stats_db, 'SELECT STRFTIME("%Y", CreationDate), COUNT(DISTINCT Id) FROM Users GROUP BY STRFTIME("%Y", CreationDate)')
+barplot(Q3Table$`COUNT(DISTINCT Id)`, names.arg = Q3Table$`STRFTIME("%Y", CreationDate)`, xlab = "CreationYear", ylab = "Count of Distinct Id", main = "Question 3 Plot")
+```
+The result plot could be interpreted as the number of user Id created in each year gradually increases from 2010 and reaches the current maximum around year 2017, after that, the number of user Id created in each year starts to decrease until now.
+
+The R code used for this question is:
+
+Q3Table = dbGetQuery(stats_db, 'SELECT STRFTIME("%Y", CreationDate), COUNT(DISTINCT Id) FROM Users GROUP BY STRFTIME("%Y", CreationDate)')
+barplot(Q3Table$`COUNT(DISTINCT Id)`, names.arg = Q3Table$`STRFTIME("%Y", CreationDate)`, xlab = "CreationYear", ylab = "Count of Distinct Id", main = "Question 3 Plot")
+
+4.How many different types of posts are there in the Posts table? Get the description of the types from the
+PostTypeIdMap table. In other words, create a table with the description of each post type and the number
+of posts of that type, and arrange it from most to least occurrences.
+
+The question is equivalent to combine the PostTypeId column in Posts table with the value column in PostTypeIdMap column in PostTypeIdMap table, with additional count of the occurence of each type achieved by GROUP BY from most to the least occurences.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT PostTypeId, value, COUNT(PostTypeId)
+FROM Posts AS p, PostTypeIdMap AS m
+WHERE PostTypeId = m.id
+GROUP BY PostTypeId
+ORDER BY COUNT(PostTypeId) DESC
+```
+
+The result finds that type "Question" owns the most occurrences, and "Wiki placeholder" owns the least occurrences. According to the exploration of PostTypeIdMap table, type "Privilege wiki" does not appear in the Posts table. Therefore, we should have totally 8 types of posts according to PostTypeIdMap table, but only 7 types of posts found in the Posts table.
+
+Here is the SQL code for the question:
+
+SELECT PostTypeId, value, COUNT(PostTypeId)
+FROM Posts AS p, PostTypeIdMap AS m
+WHERE PostTypeId = m.id
+GROUP BY PostTypeId
+ORDER BY COUNT(PostTypeId) DESC
+
+5.How many posted questions are there?
+
+The question is equivalent to find the number of PostTypeId that equals to 1 in PostsTable.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT COUNT(PostTypeId)
+FROM Posts
+WHERE PostTypeId = 1
+```
+
+Therefore, we find totally 204370 questions in the Posts table, which should be the number of questions posted. The result could be demonstrated from previous question's answer as well.
+
+Here is the SQL code used for the question:
+
+SELECT COUNT(PostTypeId)
+FROM Posts
+WHERE PostTypeId = 1
+
+6. What are the top 50 most common tags on questions? For each of the top 50 tags on questions, how many
+questions are there for each tag.
+
+The question is equivalent to combine the use of GROUP BY, ORDER BY, and LIMIT of Tag column of TagPosts table.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT Tag, COUNT(Id)
+FROM TagPosts
+GROUP BY Tag
+ORDER BY COUNT(Id) DESC
+LIMIT 50
+```
+
+Therefore, the top 50 most common tags and their occurences are:
+
+1.r	28495			
+2.regression	28146			
+3.machine-learning	19355			
+4.time-series	13745			
+5.probability	11894			
+6.hypothesis-testing	10091			
+7.distributions	9147			
+8.self-study	7985			
+9.neural-networks	7793			
+10.bayesian 7628	
+11.logistic	7507			
+12.mathematical-statistics	7455			
+13.classification	6654			
+14.correlation	6074			
+15.statistical-significance	6038			
+16.normal-distribution	5877			
+17.mixed-model	5837			
+18.multiple-regression	5265			
+19.anova	5100			
+20.python	4605	
+21.confidence-interval	4367			
+22.generalized-linear-model	4276			
+23.variance	4042			
+24.clustering	3932			
+25.forecasting	3726			
+26.t-test	3486			
+27.categorical-data	3468			
+28.cross-validation	3385			
+29.pca	3333			
+30.maximum-likelihood	3209	
+31.estimation	3159			
+32.lme4-nlme	3156			
+33.sampling	3104			
+34.predictive-models	2971			
+35.survival	2960			
+36.data-visualization	2949			
+37.inference	2899			
+38.arima	2818			
+39.p-value	2709			
+40.mean	2705	
+41.optimization	2688			
+42.least-squares	2682			
+43.repeated-measures	2612			
+44.chi-squared-test	2559			
+45.modeling	2501			
+46.references	2451			
+47.multivariate-analysis	2430			
+48.econometrics	2422			
+49.interaction	2421			
+50.linear-model	2412	
+
+Here is the SQL code used for this question:
+
+SELECT Tag, COUNT(Id)
+FROM TagPosts
+GROUP BY Tag
+ORDER BY COUNT(Id) DESC
+LIMIT 50
+
+7.How many tags are in most questions?
+
+The question may be interpreted as the average tag number for each question.
+
+Here is the Code Output:
+```{sql connection = stats_db}
+SELECT COUNT(Id)
+FROM TagPosts
+```
+
+Since the number of questions posted has been found in question 5, thus we use R to do the computation:
+```{r}
+print("The number of tags in most questions are: ")
+print(630551/204370)
+```
+
+Therefore, in average, we have 3.08534 tags per questions, which is about 3 tags per question in average. We could perform the calculation since only type "question" would have attached tags.
+
+Here is the code used for this question:
+
+SELECT COUNT(Id)
+FROM TagPosts
+
+print("The number of tags in most questions are: ")
+print(630551/204370)
+
+8. How many answers are there?
+
+The question is equivalent to find the number of PostTypeId with value 2 in Posts table.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT COUNT(PostTypeId)
+FROM Posts
+WHERE PostTypeId = 2
+```
+
+Therefore, we should have 197928 answers in total, as the result could be demonstrated by the answer to question 4.
+
+Here is the SQL code used in this question:
+
+SELECT COUNT(PostTypeId)
+FROM Posts
+WHERE PostTypeId = 2
+
+9. What’s the most recent question (by date-time) in the Posts table?
+
+The question is to find the url of the question with the latest creation date and time given Posts table.
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT datetime(CreationDate), Body
+FROM Posts
+ORDER BY CreationDate DESC
+LIMIT 1
+```
+
+Therefore, we find the most recently created question with the Body starting by "Are there any methods that combine VI and MCMC?"
+
+Here is the SQL code used:
+
+SELECT datetime(CreationDate), Body
+FROM Posts
+ORDER BY CreationDate DESC
+LIMIT 1
+
+• Find it on the stats.exchange.com Web site and provide the URL.
+
+Based on the code output and web search result, we find the URL of the specific question:
+
+https://stats.stackexchange.com/questions/608458/are-there-any-methods-that-combine-mcmc-and-vi
+
+• How would we map a question in the Posts table to the corresponding SO URL?
+
+We could search the stats.exchange.com website with the keyword extracted from the Body of the specific question.
+
+10. For the 10 users who posted the most questions
+
+The first step to solve the question is to find the top 10 users posting the most questions. Considering the following question, we need to arrange the following variable from both Posts table and Users table:
+
+OwnerUserId, Displayname, CreationDate (Users), Reputation, Location
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT u.Id, OwnerUserId, COUNT(OwnerUserId), Displayname, datetime(u.CreationDate), Reputation, Location
+FROM Posts AS p, Users AS u
+WHERE p.OwnerUserId = u.Id
+GROUP BY OwnerUserId
+ORDER BY COUNT(OwnerUserId) DESC
+LIMIT 10
+```
+
+Here is the SQL Code used for this question:
+
+SELECT OwnerUserId, COUNT(OwnerUserId), Displayname, datetime(u.CreationDate), Reputation, Location
+FROM Posts AS p, Users AS u
+WHERE p.OwnerUserId = u.Id
+GROUP BY OwnerUserId
+ORDER BY COUNT(OwnerUserId) DESC
+LIMIT 10
+
+The remain sub questions could be solved based on the result table.
+
+• How many questions did they post?
+
+The top 10 users that post most questions post the following number of questions:
+
+4850, 3152, 3080, 2703, 2638, 2546, 2297, 2238, 3190, 1907
+
+• What are the users’ names?
+
+Their usernames are:
+
+Glen_b, whuber, Peter Flom, EdM, kjetil b halvorsen, Tim, Ben, Stephan Kolassa, BruceET, gung - Reinstate Monica
+
+• When did they join SO?
+
+Glen_b: 2010-08-07 08:40:07
+whuber: 2010-08-13 15:29:47
+Peter Flom: 2010-08-03 19:42:40
+EdM: 2013-07-26 15:11:03
+kjetil b halvorsen: 2012-06-09 22:52:37
+Tim: 2013-12-10 21:19:06
+Ben: 2017-08-10 03:27:26
+Stephan Kolassa: 2010-09-18 10:55:08
+BruceET: 2015-08-11 17:22:01
+gung - Reinstate Monica: 2011-11-09 04:43:15
+
+• What is their Reputation?
+
+Glen_b	268966	
+whuber	304878	
+Peter Flom	97091	
+EdM	76431	
+kjetil b halvorsen	70519	
+Tim	126510	
+Ben	108435	
+Stephan Kolassa	107905	
+BruceET	53074	
+gung - Reinstate Monica	138999
+
+• What country do they have in their profile?
+
+Glen_b	Location: I'm right here
+whuber	Location: NULL
+Peter Flom	Location: New York, NY
+EdM	Location: NULL
+kjetil b halvorsen	Location: Bolivia
+Tim	Location: Warsaw, Poland
+Ben	Location: Canberra, Australia
+Stephan Kolassa	Location: Switzerland
+BruceET	Location: San Francisco Bay Area
+gung - Reinstate Monica	Location: Kingdom of Zhao
+
+11. Following from the previous questions, for the 10 users who posted the most questions, how many gold,
+silver and bronze badges does each of these 10 individuals have?
+
+Based on the questions, we need to search in the Badges table considering the variable Class.
+
+Here is the SQL Code Output for username Glen_b:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 805
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 805
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username whuber:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 919
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 919
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username Peter Flom:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 686
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 686
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username EdM:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 28500
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 28500
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username kjetil b halvorsen:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 11887
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 11887
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username Tim:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 35989
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 35989
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username Ben:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 173082
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 173082
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username Stephan Kolassa:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 1352
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 1352
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username BruceET:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 85665
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 85665
+  AND Class = m.id
+GROUP BY Class
+
+Here is the SQL Code Output for username gung - Reinstate Monica:
+```{sql connection = stats_db}
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 7290
+  AND Class = m.id
+GROUP BY Class
+```
+
+The SQL Code used for this username is:
+
+SELECT UserId, Class, m.value, COUNT(UserId)
+FROM Badges AS b, BadgeClassMap AS m
+WHERE UserId = 7290
+  AND Class = m.id
+GROUP BY Class
+
+12. For each of the following terms, how many questions contain that term: Regression, ANOVA, Data
+Mining, Machine Learning, Deep Learning, Neural Network.
+
+The question is to find the count of type "question" with its body containing the key words.
+
+The SQL Code Output for keyword "Regression":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Regression%"
+```
+
+Therefore, we have 39296 questions with its body information containing keyword "Regression".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Regression%"
+
+The SQL Code Output for keyword "ANOVA":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%ANOVA%"
+```
+
+Therefore, we have 7167 questions with its body information containing keyword "ANOVA".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%ANOVA%"
+
+The SQL Code Output for keyword "Data Mining":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Data Mining%"
+```
+
+Therefore, we have 405 questions with its body information containing keyword "Data Mining".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Data Mining%"
+  
+The SQL Code Output for keyword "Machine Learning":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Machine Learning%"
+```
+
+Therefore, we have 5404 questions with its body information containing keyword "Machine Learning".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Machine Learning%"
+
+The SQL Code Output for keyword "Deep Learning":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Deep Learning%"
+```
+
+Therefore, we have 1124 questions with its body information containing keyword "Deep Learning".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Deep Learning%"
+
+The SQL Code Output for keyword "Neural Network":
+```{sql connection = stats_db}
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Neural Network%"
+```
+
+Therefore, we have 5063 questions with its body information containing keyword "Neural Network".
+
+The SQL code used for this keyword:
+
+SELECT COUNT(*)
+FROM Posts
+WHERE PostTypeId = 1
+  AND Body LIKE "%Neural Network%"
+  
+14. What is the date range for the questions and answers in this database?
+
+The question is to find the min and max regarding date-time for type "question" and "answer" in Posts table.
+
+Here is the SQL Code Output regarding type "question":
+```{sql connection = stats_db}
+SELECT PostTypeId, MAX(datetime(CreationDate)), MIN(datetime(CreationDate))
+FROM Posts
+WHERE PostTypeId = 1
+```
+
+According to the result, we find the date range for type "question" to be:
+
+2009-02-02 14:21:12 ~ 2023-03-05 05:10:18
+
+The SQL code used for type "question" is:
+
+SELECT PostTypeId, MAX(datetime(CreationDate)), MIN(datetime(CreationDate))
+FROM Posts
+WHERE PostTypeId = 1
+
+Here is the SQL Code Output regarding type "answer":
+```{sql connection = stats_db}
+SELECT PostTypeId, MAX(datetime(CreationDate)), MIN(datetime(CreationDate))
+FROM Posts
+WHERE PostTypeId = 2
+```
+
+According to the result, we find the date range for type "answer" to be:
+
+2009-02-02 14:24:31 ~ 2023-03-05 04:48:34
+
+The SQL code used for type "answer" is:
+
+SELECT PostTypeId, MAX(datetime(CreationDate)), MIN(datetime(CreationDate))
+FROM Posts
+WHERE PostTypeId = 2
+
+# Question & Answer - Required Questions
+
+21. Compute the table that contains
+• the question,
+• the name of the user who posted it,
+• when that user joined,
+• their location
+• the date the question was first posted,
+• the accepted answer,
+• when the accepted answer was posted
+• the name of the user who provided the accepted answer.
+
+The question requires the use of Posts table and Users table. with variable Title, Displayname, CreationDate (Users), Location, CreationDate (Posts), AcceptedAnswerId, OwnerUserId
+
+Here is the SQL Code Output:
+```{sql connection = stats_db}
+SELECT A.Title AS Question, u.Displayname AS UserName, u.CreationDate AS UserJoinDate, u.Location, A.CreationDate AS QuestionPostedDate, A.AcceptedAnswerId, B.CreationDate AS AcceptedAnswerPostDate, B.OwnerUserId AS AcceptedAnswerOwnerId, v.DisplayName AS AcceptedAnswerOwnerUserName
+FROM Posts AS A, Users AS u, Posts AS B, Users AS v
+WHERE A.PostTypeId = 1
+  AND A.OwnerUserId = u.Id
+  AND B.Id = A.AcceptedAnswerId
+  AND v.Id = B.OwnerUserId
+LIMIT 10
+```
+
+The SQL code used for this question:
+
+SELECT A.Title AS Question, u.Displayname AS UserName, u.CreationDate AS UserJoinDate, u.Location, A.CreationDate AS QuestionPostedDate, A.AcceptedAnswerId, B.CreationDate AS AcceptedAnswerPostDate, B.OwnerUserId AS AcceptedAnswerOwnerId, v.DisplayName AS AcceptedAnswerOwnerUserName
+FROM Posts AS A, Users AS u, Posts AS B, Users AS v
+WHERE A.PostTypeId = 1
+  AND A.OwnerUserId = u.Id
+  AND B.Id = A.AcceptedAnswerId
+  AND v.Id = B.OwnerUserId
+LIMIT 10
+
+22. Determine the users that have only posted questions and never answered a question? (Compute the
+table containing the number of questions, number of answers and the user’s login name for this group.)
+How many are there?
+
+For this question, we need to check the overlap between the people who posted questions and the people who answered question. R should be the key language used for this question.
+
+After the common rows are found, we exclude these rows from the dataframe containing people who raised questions, and we remove all repeated ids to get the number of people who only posted questions.
+
+Here is the Code Output:
+```{r warning=FALSE}
+library(dplyr)
+PostQPeo = dbGetQuery(stats_db, "SELECT p.OwnerUserId, u.Displayname
+FROM Posts AS p, Users AS u
+WHERE PostTypeId = 1
+  AND OwnerUserId = u.Id")
+ANSQPeo = dbGetQuery(stats_db, "SELECT p.OwnerUserId, u.Displayname
+FROM Posts AS p, Users AS u
+WHERE PostTypeId = 2
+  AND OwnerUserId = u.Id")
+```
+
+```{r}
+DataCommon = intersect(PostQPeo, ANSQPeo)
+ResultDF = PostQPeo[!(PostQPeo$OwnerUserId %in% DataCommon$OwnerUserId), ]
+ResultDF = ResultDF[!duplicated(ResultDF), ]
+head(ResultDF)
+```
+
+```{r}
+print("The number of people only raising questions are: ")
+print(nrow(ResultDF))
+```
+
+Therefore, we have 76410 users who only posted questions and never answered questions. 
+
+Here is the R code used for this question:
+
+library(dplyr)
+PostQPeo = dbGetQuery(stats_db, "SELECT p.OwnerUserId, u.Displayname
+FROM Posts AS p, Users AS u
+WHERE PostTypeId = 1
+  AND OwnerUserId = u.Id")
+ANSQPeo = dbGetQuery(stats_db, "SELECT p.OwnerUserId, u.Displayname
+FROM Posts AS p, Users AS u
+WHERE PostTypeId = 2
+  AND OwnerUserId = u.Id")
+
+DataCommon = intersect(PostQPeo, ANSQPeo)
+ResultDF = PostQPeo[!(PostQPeo$OwnerUserId %in% DataCommon$OwnerUserId), ]
+ResultDF = ResultDF[!duplicated(ResultDF), ]
+head(ResultDF)
+
+print("The number of people only raising questions are: ")
+print(nrow(ResultDF))
+
+23. Compute the table with information for the 75 users with the most accepted answers. This table should
+include
+• the user’s display name,
+• creation date,
+• location,
+• the number of badges they have won,
+– the names of the badges (as a single string)
+• the dates of the earliest and most recent accepted answer (as two fields)
+– the (unique) tags for all the questions for which they had the accepted answer (as a single string)
+
+First of all, we need to use ORDER BY and GROUP BY to find the users with the most accepted answers;
+After that, we perform self-join to the Posts table to find the AcceptedAnswers;
+Finally, we join other tables' variables to complete our table.
+
+Here is the Code Output:
+```{sql connection = stats_db}
+SELECT A.OwnerUserId, COUNT(A.OwnerUserId), u.DisplayName, datetime(u.CreationDate) AS CreationDate, u.Location, COUNT(b.Class) AS NumberOfBadges, MIN(datetime(A.CreationDate)) AS EarliestAnswerDate, MAX(datetime(A.CreationDate)) AS MostRecentAnswerDate
+FROM Posts AS A, Posts AS B, Users AS u, Badges AS b
+WHERE NOT A.OwnerUserId = ""
+  AND A.Id = B.AcceptedAnswerId
+  AND u.Id = A.OwnerUserId
+  AND b.UserId = A.OwnerUserId
+GROUP BY A.OwnerUserId
+ORDER BY COUNT(A.OwnerUserId) DESC
+LIMIT 75
+```
+
+Here is the SQL code used for this question:
+
+SELECT A.OwnerUserId, COUNT(A.OwnerUserId), u.DisplayName, datetime(u.CreationDate) AS CreationDate, u.Location, COUNT(b.Class) AS NumberOfBadges, MIN(datetime(A.CreationDate)) AS EarliestAnswerDate, MAX(datetime(A.CreationDate)) AS MostRecentAnswerDate
+FROM Posts AS A, Posts AS B, Users AS u, Badges AS b
+WHERE NOT A.OwnerUserId = ""
+  AND A.Id = B.AcceptedAnswerId
+  AND u.Id = A.OwnerUserId
+  AND b.UserId = A.OwnerUserId
+GROUP BY A.OwnerUserId
+ORDER BY COUNT(A.OwnerUserId) DESC
+LIMIT 75
+
+24. How many questions received no answers (accepted or unaccepted)? How many questions had no
+accepted answer?
+
+The question needs us to find the questions with AcceptedAnswerId to be empty or with AnswerCount to be 0 based on the Posts table. The later count of number needs the help from R.
+
+Here is the Code Output:
+```{r warning=FALSE}
+Q24TA = dbGetQuery(stats_db, "SELECT Id, Title
+FROM Posts
+WHERE AnswerCount = 0
+  AND PostTypeId = 1")
+print("The number of questions receiving no answers are: ")
+print(nrow(Q24TA))
+```
+```{r warning=FALSE}
+Q24TB = dbGetQuery(stats_db, 'SELECT Id, Title
+FROM Posts
+WHERE AcceptedAnswerId = ""
+  AND PostTypeId = 1')
+print("The number of questions receiving no accepted answers are: ")
+print(nrow(Q24TB))
+```
+Therefore, we have totally 66970 questions receiving no answers, and 136365 questions receiving no accepted answers.
+
+Here is the R code used for this question:
+
+Q24TA = dbGetQuery(stats_db, "SELECT Id, Title
+FROM Posts
+WHERE AnswerCount = 0
+  AND PostTypeId = 1")
+print("The number of questions receiving no answers are: ")
+print(nrow(Q24TA))
+
+Q24TB = dbGetQuery(stats_db, 'SELECT Id, Title
+FROM Posts
+WHERE AcceptedAnswerId = ""
+  AND PostTypeId = 1')
+print("The number of questions receiving no accepted answers are: ")
+print(nrow(Q24TB))
+
+25. What is the distribution of answers per posted question?
+
+We need to plot the distribution of count of answers based on Posts table. Variables AnswerCount and PostTypeId are expected to involve in the solution.
+
+Here is the Code Output:
+```{r}
+Q25Table = dbGetQuery(stats_db, "SELECT AnswerCount FROM Posts WHERE PostTypeId = 1")
+barplot(Q25Table$AnswerCount, xlab = "Question", ylab = "AnswerCount", main = "Distribution of Answers Per Posted Question")
+```
+
+Here is the R code used for this question:
+
+Q25Table = dbGetQuery(stats_db, "SELECT AnswerCount FROM Posts WHERE PostTypeId = 1")
+barplot(Q25Table$AnswerCount, xlab = "Question", ylab = "AnswerCount", main = "Distribution of Answers Per Posted Question")
+
+26. What is the length of time for a question to receive an answer? to obtaining an accepted answer?
+
+We need to perform mathematic calculation to find the length of time to get either the first answer or an accepted answer to the question.
+
+Here is the Code Output:
+```{r}
+Q26TA = dbGetQuery(stats_db, "SELECT Q.Id AS QuestionId, A.Id AS AnswerId, datetime(A.CreationDate) AS FirstAnswerPostedTime, datetime(Q.CreationDate) AS QuestionPostedTime
+FROM Posts AS A, Posts AS Q
+WHERE Q.Id = A.ParentId
+GROUP BY Q.Id
+ORDER BY A.CreationDate")
+TimeToReceiveAnswer = as.POSIXct(Q26TA$FirstAnswerPostedTime, format = '%Y-%m-%d %H:%M:%S') - as.POSIXct(Q26TA$QuestionPostedTime, format = '%Y-%m-%d %H:%M:%S')
+head(cbind(Q26TA, TimeToReceiveAnswer))
+```
+```{r}
+barplot(as.numeric(TimeToReceiveAnswer), xlab = "Question", ylab = "TimeToReceiveAnswer", main = "Length of Time for Question to Receive an Answer")
+```
+
+```{r}
+Q26TB = dbGetQuery(stats_db, "SELECT Q.Id AS QuestionId, A.Id AS AcceptedAnswerId, datetime(A.CreationDate) AS AcceptedAnswerPostedTime, datetime(Q.CreationDate) AS QuestionPostedTime
+FROM Posts AS A, Posts AS Q
+WHERE Q.Id = A.ParentId
+  AND A.Id = Q.AcceptedAnswerId
+GROUP BY Q.Id
+ORDER BY A.CreationDate")
+TimeToReceiveAcceptedAnswer = as.POSIXct(Q26TB$AcceptedAnswerPostedTime, format = '%Y-%m-%d %H:%M:%S') - as.POSIXct(Q26TB$QuestionPostedTime, format = '%Y-%m-%d %H:%M:%S')
+head(cbind(Q26TB, TimeToReceiveAcceptedAnswer))
+```
+
+```{r}
+barplot(as.numeric(TimeToReceiveAcceptedAnswer), xlab = "Question", ylab = "TimeToReceiveAcceptedAnswer", main = "Length of Time for Question to Receive Accepted Answer")
+```
+
+Here is the code used for this question:
+
+Q26TA = dbGetQuery(stats_db, "SELECT Q.Id AS QuestionId, A.Id AS AnswerId, datetime(A.CreationDate) AS FirstAnswerPostedTime, datetime(Q.CreationDate) AS QuestionPostedTime
+FROM Posts AS A, Posts AS Q
+WHERE Q.Id = A.ParentId
+GROUP BY Q.Id
+ORDER BY A.CreationDate")
+TimeToReceiveAnswer = as.POSIXct(Q26TA$FirstAnswerPostedTime, format = '%Y-%m-%d %H:%M:%S') - as.POSIXct(Q26TA$QuestionPostedTime, format = '%Y-%m-%d %H:%M:%S')
+head(cbind(Q26TA, TimeToReceiveAnswer))
+
+barplot(as.numeric(TimeToReceiveAnswer), xlab = "Question", ylab = "TimeToReceiveAnswer", main = "Length of Time for Question to Receive an Answer")
+
+Q26TB = dbGetQuery(stats_db, "SELECT Q.Id AS QuestionId, A.Id AS AcceptedAnswerId, datetime(A.CreationDate) AS AcceptedAnswerPostedTime, datetime(Q.CreationDate) AS QuestionPostedTime
+FROM Posts AS A, Posts AS Q
+WHERE Q.Id = A.ParentId
+  AND A.Id = Q.AcceptedAnswerId
+GROUP BY Q.Id
+ORDER BY A.CreationDate")
+TimeToReceiveAcceptedAnswer = as.POSIXct(Q26TB$AcceptedAnswerPostedTime, format = '%Y-%m-%d %H:%M:%S') - as.POSIXct(Q26TB$QuestionPostedTime, format = '%Y-%m-%d %H:%M:%S')
+head(cbind(Q26TB, TimeToReceiveAcceptedAnswer))
+
+barplot(as.numeric(TimeToReceiveAcceptedAnswer), xlab = "Question", ylab = "TimeToReceiveAcceptedAnswer", main = "Length of Time for Question to Receive Accepted Answer")
+
+27. How many answers are typically received before the accepted answer?
+
+We need to find the most common number of answers before the accepted answer's posted time. This involves both SQL and R.
+
+Here is the Code Output:
+```{r}
+Q27 = dbGetQuery(stats_db, 'SELECT A.Id AS QuestionId, COUNT(B.Id) AS NumberOfAnswersBeforeAccepted
+FROM Posts AS A, Posts AS B, Posts AS C
+WHERE A.PostTypeId = 1
+  AND NOT A.AcceptedAnswerId = ""
+  AND B.ParentId = A.Id
+  AND C.Id = A.AcceptedAnswerId
+  AND C.CreationDate > B.CreationDate
+GROUP BY A.Id')
+print("The typical numbers of received answers before the accepted answer is: ")
+print(sort(table(as.vector(Q27$NumberOfAnswersBeforeAccepted)), decreasing = T)[1:6])
+```
+Therefore, based on the code output, we could conclude that typically we would receive 1 answer before the accepted answer is posted.
